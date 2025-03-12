@@ -17,17 +17,14 @@ final class CartService
     protected const SESSION_KEY = 'guest_cart';
     protected const CACHE_KEY = 'user_cart:';
     protected const CACHE_TTL = 60; // 60 minutes
-    protected const MAX_QUANTITY = 100;
+    public const MAX_QUANTITY = 100;
 
-    /**
-     * Add a product to the cart (either session-based for guests or database for authenticated users).
-     *
-     * @param Product $product
-     * @param int $quantity
-     * @return void
-     */
     public function addItem(Product $product, int $quantity = 1): void
     {
+        if (!$product->exists) {
+            throw new \Exception("Product not found");
+        }
+
         $this->validateItem($product, $quantity);
 
         if (Auth::check()) {
@@ -37,11 +34,6 @@ final class CartService
         }
     }
 
-    /**
-     * Retrieve cart items for the current user.
-     *
-     * @return array
-     */
     public function getItems(): array
     {
         return Auth::check()
@@ -49,15 +41,6 @@ final class CartService
             : $this->getSessionCart();
     }
 
-    // ------ Guest Methods ------ //
-
-    /**
-     * Add a product to the session-based cart (for guests).
-     *
-     * @param Product $product
-     * @param int $quantity
-     * @return void
-     */
     private function addToSessionCart(Product $product, int $quantity): void
     {
         try {
@@ -78,25 +61,12 @@ final class CartService
         }
     }
 
-    /**
-     * Retrieve the session-based cart (for guests).
-     *
-     * @return array
-     */
     private function getSessionCart(): array
     {
         return array_values(Session::get(self::SESSION_KEY, []));
     }
 
-    // ------ User Methods ------ //
 
-    /**
-     * Add a product to the database cart (for authenticated users).
-     *
-     * @param Product $product
-     * @param int $quantity
-     * @return void
-     */
     private function addToDatabaseCart(Product $product, int $quantity): void
     {
         $cacheKey = self::CACHE_KEY . Auth::id();
@@ -109,7 +79,11 @@ final class CartService
                 $cartItem = $this->resolveCartItem($cart, $product, $quantity);
 
                 $cartItem->save();
-                Cache::put($cacheKey, $cart->fresh()->load('items.product'), self::CACHE_TTL);
+                // Instead of caching the entire Cart model, cache the formatted items array.
+                $formattedCartItems = $this->formatDatabaseItems(
+                    $cart->fresh()->load('items.product')->items
+                );
+                Cache::put($cacheKey, $formattedCartItems, self::CACHE_TTL);
             } catch (QueryException $e) {
                 Log::error('Database Cart Error: ' . $e->getMessage());
                 throw new \Exception("Failed to update cart");
@@ -117,11 +91,6 @@ final class CartService
         });
     }
 
-    /**
-     * Retrieve the database cart (for authenticated users).
-     *
-     * @return array
-     */
     private function getDatabaseCart(): array
     {
         $cacheKey = self::CACHE_KEY . Auth::id();
@@ -132,16 +101,6 @@ final class CartService
         });
     }
 
-    // ------ Shared Helpers ------ //
-
-    /**
-     * Validate the product and quantity before adding to the cart.
-     *
-     * @param Product $product
-     * @param int $quantity
-     * @return void
-     * @throws \Exception
-     */
     private function validateItem(Product $product, int $quantity): void
     {
         if ($quantity < 1) {
@@ -157,14 +116,6 @@ final class CartService
         }
     }
 
-    /**
-     * Resolve the cart item by finding or creating it and updating the quantity.
-     *
-     * @param Cart $cart
-     * @param Product $product
-     * @param int $quantity
-     * @return CartItem
-     */
     private function resolveCartItem(Cart $cart, Product $product, int $quantity): CartItem
     {
         return tap(
@@ -173,7 +124,10 @@ final class CartService
                 ->lockForUpdate()
                 ->firstOrNew(
                     ['product_id' => $product->id],
-                    ['quantity' => 0]
+                    [
+                        'quantity' => 0,
+                        'price' => $product->price
+                    ]
                 ),
             function (CartItem $item) use ($quantity, $product) {
                 $newQuantity = $item->quantity + $quantity;
@@ -183,8 +137,6 @@ final class CartService
             }
         );
     }
-
-    // ------ Formatting Methods ------ //
 
     private function formatSessionItem(Product $product, int $quantity): array
     {
@@ -208,13 +160,6 @@ final class CartService
         })->toArray();
     }
 
-    // ------ Cart Merging ------ //
-
-    /**
-     * Merge session cart items with the database cart when a guest logs in.
-     *
-     * @return void
-     */
     public function mergeCartsOnLogin(): void
     {
         DB::transaction(function () {
@@ -235,13 +180,6 @@ final class CartService
         });
     }
 
-    /**
-     * Merge an individual cart item from session to the database cart.
-     *
-     * @param Cart $cart
-     * @param array $item
-     * @return void
-     */
     private function mergeCartItem(Cart $cart, array $item): void
     {
         $productId = $item['product_id'] ?? null;
@@ -277,15 +215,6 @@ final class CartService
         $existingItem->save();
     }
 
-    /**
-     * Remove an item from the cart.
-     * This method checks if the user is authenticated. 
-     * - If authenticated, it removes the item from the database cart.
-     * - Otherwise, it removes the item from the session cart.
-     *
-     * @param int $productId The ID of the product to be removed.
-     * @return void
-     */
     public function removeItem(int $productId): void
     {
         if (Auth::check()) {
@@ -295,14 +224,6 @@ final class CartService
         }
     }
 
-    /**
-     * Clear all items from the cart.
-     * This method checks if the user is authenticated. 
-     * - If authenticated, it clears the database cart.
-     * - Otherwise, it clears the session cart.
-     *
-     * @return void
-     */
     public function clearCart(): void
     {
         if (Auth::check()) {
@@ -312,21 +233,11 @@ final class CartService
         }
     }
 
-    // ------ Guest Removal Methods ------ //
-
-    /**
-     * Remove a specific item from the session-based cart (for guests).
-     *
-     * @param int $productId The ID of the product to be removed.
-     * @return void
-     */
     private function removeFromSessionCart(int $productId): void
     {
         try {
-            // Retrieve the current session cart
             $cart = Session::get(self::SESSION_KEY, []);
 
-            // If the product exists in the cart, remove it
             if (isset($cart[$productId])) {
                 unset($cart[$productId]);
                 Session::put(self::SESSION_KEY, $cart);
@@ -337,42 +248,22 @@ final class CartService
         }
     }
 
-    /**
-     * Clear the entire session-based cart (for guests).
-     *
-     * @return void
-     */
     private function clearSessionCart(): void
     {
         Session::forget(self::SESSION_KEY);
     }
 
-    // ------ User Removal Methods ------ //
-
-    /**
-     * Remove a specific item from the database cart (for authenticated users).
-     * This method uses a database transaction to ensure data integrity.
-     *
-     * @param int $productId The ID of the product to be removed.
-     * @return void
-     * @throws \Exception If there is a database error.
-     */
     private function removeFromDatabaseCart(int $productId): void
     {
         $cacheKey = self::CACHE_KEY . Auth::id();
 
         DB::transaction(function () use ($productId, $cacheKey) {
             try {
-                // Invalidate the cache before modifying the cart
                 Cache::forget($cacheKey);
 
-                // Retrieve the authenticated user's cart
                 $cart = Auth::user()->cart()->first();
                 if ($cart) {
-                    // Remove the item from the cart
                     $cart->items()->where('product_id', $productId)->delete();
-
-                    // Refresh the cache with the updated cart data
                     Cache::put($cacheKey, $cart->fresh()->load('items.product'), self::CACHE_TTL);
                 }
             } catch (QueryException $e) {
@@ -382,26 +273,15 @@ final class CartService
         });
     }
 
-    /**
-     * Clear all items from the database cart (for authenticated users).
-     * This method uses a database transaction to ensure atomicity.
-     *
-     * @return void
-     * @throws \Exception If there is a database error.
-     */
     private function clearDatabaseCart(): void
     {
         $cacheKey = self::CACHE_KEY . Auth::id();
 
         DB::transaction(function () use ($cacheKey) {
             try {
-                // Retrieve the authenticated user's cart
                 $cart = Auth::user()->cart()->first();
                 if ($cart) {
-                    // Remove all cart items
                     $cart->items()->delete();
-
-                    // Invalidate the cache
                     Cache::forget($cacheKey);
                 }
             } catch (QueryException $e) {
