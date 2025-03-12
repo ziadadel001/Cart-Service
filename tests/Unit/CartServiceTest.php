@@ -231,7 +231,7 @@ class CartServiceTest extends TestCase
         );
 
         $executionTime = microtime(true) - $startTime;
-        $this->assertLessThan(2, $executionTime, "الوقت الفعلي: $executionTime ثانية");
+        $this->assertLessThan(1, $executionTime, "الوقت الفعلي: $executionTime ثانية");
 
         $startTime = microtime(true);
         $this->cartService->getItems();
