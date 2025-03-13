@@ -1,4 +1,4 @@
-# 🛒 Cart Service API - Laravel 12
+# 🛒 Cart Service 
 
 ## 🚀 Overview
 The **Cart Service** provides a powerful and efficient cart management system within a Laravel 12 e-commerce API. It enables users to add, retrieve, update, and remove products from their cart while ensuring smooth handling for both guests and authenticated users. The service supports cart merging upon login, quantity updates, and session-based storage for guests, ensuring a seamless shopping experience.
