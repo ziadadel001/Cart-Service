@@ -166,22 +166,22 @@ public function clearCart()
  php artisan test --filter=CartServiceTest
 
    PASS  Tests\Feature\CartServiceTest
-  ✓ guest can add product to cart                                                                   0.96s
-  ✓ authenticated user can add product to cart                                                      0.06s
-  ✓ guest can retrieve cart items                                                                   0.04s
-  ✓ authenticated user can retrieve cart items                                                      0.04s
-  ✓ guest can remove product from cart                                                              0.04s
-  ✓ authenticated user can remove product from cart                                                 0.04s
-  ✓ guest can clear cart                                                                            0.04s
-  ✓ authenticated user can clear cart                                                               0.04s
-  ✓ cart merges on login                                                                            0.03s
-  ✓ cannot add more than max quantity                                                               0.03s
-  ✓ cannot add more than available stock                                                            0.03s
-  ✓ cannot add negative quantity                                                                    0.03s
-  ✓ adding same product twice increases quantity                                                    0.04s
-  ✓ cannot add non existent product                                                                 0.04s
-  ✓ cannot add product with zero quantity                                                           0.03s
-  ✓ performance with thousands of items                                                             0.87s
+  ✓ guest can add product to cart                                                              0.96s
+  ✓ authenticated user can add product to cart                                                 0.06s
+  ✓ guest can retrieve cart items                                                              0.04s
+  ✓ authenticated user can retrieve cart items                                                 0.04s
+  ✓ guest can remove product from cart                                                         0.04s
+  ✓ authenticated user can remove product from cart                                            0.04s
+  ✓ guest can clear cart                                                                       0.04s
+  ✓ authenticated user can clear cart                                                          0.04s
+  ✓ cart merges on login                                                                       0.03s
+  ✓ cannot add more than max quantity                                                          0.03s
+  ✓ cannot add more than available stock                                                       0.03s
+  ✓ cannot add negative quantity                                                               0.03s
+  ✓ adding same product twice increases quantity                                               0.04s
+  ✓ cannot add non existent product                                                            0.04s
+  ✓ cannot add product with zero quantity                                                      0.03s
+  ✓ performance with thousands of items                                                        0.87s
   Tests:    16 passed (26 assertions)
   Duration: 2.51s
 ```
