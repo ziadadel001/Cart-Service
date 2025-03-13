@@ -191,12 +191,6 @@ public function clearCart()
 The system was tested with **1,000 products**, ensuring fast response times and optimal database queries. Redis is used for caching cart data, improving speed and efficiency.
 
 
-## 📌 Next Steps
-
-- Implement **coupon & discount system**.
-- Add **multi-cart support** for different user sessions.
-- Optimize for **API response caching** with Redis.
 
 ---
 
-**Developed by Ziad Adel Gomaa** 🚀
