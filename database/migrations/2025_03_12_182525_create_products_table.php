@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
         $table->string('name');
         $table->text('description');
-        $table->decimal('price', 8, 2); // السعر مع 8 أرقام و 2 منازل
+        $table->decimal('price', 8, 2); 
         $table->integer('stock')->default(0);
         $table->timestamps();
         });
