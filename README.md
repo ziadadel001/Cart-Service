@@ -1,66 +1,202 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🛒 Cart Service API - Laravel 12
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 🚀 Overview
+The **Cart Service** provides a powerful and efficient cart management system within a Laravel 12 e-commerce API. It enables users to add, retrieve, update, and remove products from their cart while ensuring smooth handling for both guests and authenticated users. The service supports cart merging upon login, quantity updates, and session-based storage for guests, ensuring a seamless shopping experience.
 
-## About Laravel
+## 🔑 Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Guest & Authenticated User Support**
+  - Guests can add products to their cart (stored in the session).
+  - Authenticated users’ cart data is stored in the database.
+  - When a guest logs in, their cart is merged with their existing user cart.
+- **Cart Functionality**
+  - Add, retrieve, update, and remove items from the cart.
+  - Prevent adding negative values or exceeding stock limits.
+  - Clear cart functionality.
+  - High performance, even with thousands of items.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## Learning Laravel
+## Database Structure
+To properly implement the cart system, you need to have four database tables:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Users Table (`users`)
+Stores user information.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 2. Products Table (`products`)
+Stores product details.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. Carts Table (`carts`)
+Stores cart details, linked to users.
 
-## Laravel Sponsors
+### 4. Cart Items Table (`cart_items`)
+Stores products added to the cart.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Relationships
 
-### Premium Partners
+### In `User` Model:
+```php
+public function cart(): HasOne
+{
+    return $this->hasOne(Cart::class);
+}
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+### In `Product` Model:
+```php
+public function cartItems(): HasMany
+{
+    return $this->hasMany(CartItem::class);
+}
+```
 
-## Contributing
+### In `Cart` Model:
+```php
+public function user() : BelongsTo
+{
+    return $this->belongsTo(User::class);
+}
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+public function items(): HasMany
+{
+    return $this->hasMany(CartItem::class);
+}
+```
 
-## Code of Conduct
+### In `CartItem` Model:
+```php
+public function cart() : BelongsTo
+{
+    return $this->belongsTo(Cart::class);
+}
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+public function product() : BelongsTo
+{
+    return $this->belongsTo(Product::class);
+}
+```
 
-## Security Vulnerabilities
+## 🔹 Code Usage
+## 1. Injecting `CartService` into the Controller
+Use **Dependency Injection** in the constructor.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```php
+use App\Services\CartService;
 
-## License
+class CartController extends Controller
+{
+    protected CartService $cartService;
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+    public function __construct(CartService $cartService)
+    {
+        $this->cartService = $cartService;
+    }
+}
+```
+
+## 2. Adding a Product to the Cart
+Use `addItem` to add the product to the cart.
+
+```php
+public function addToCart(Product $product)
+{
+    $this->cartService->addItem($product, 1);
+    return response()->json(['message' => 'Product added to cart']);
+}
+```
+
+## 3. Retrieving Items from the Cart
+Use `getItems` to retrieve all items.
+
+```php
+public function getCartItems()
+{
+    $items = $this->cartService->getItems();
+    return response()->json($items);
+}
+```
+
+## 4. Merging Guest Cart on Login
+Call `mergeCartsOnLogin` when the user logs in.
+
+```php
+public function mergeCartOnLogin()
+{
+    $this->cartService->mergeCartsOnLogin();
+}
+```
+
+## 5. Removing an Item from the Cart
+Use `removeItem` to remove a product from the cart.
+
+```php
+public function removeFromCart(Product $product)
+{
+    $this->cartService->removeItem($product);
+    return response()->json(['message' => 'Product removed from cart']);
+}
+```
+## 6. Updating Item Quantity in the Cart
+Use `updateQuantity` to modify the quantity of a product.
+
+```php
+public function updateCartQuantity(Product $product, int $quantity)
+{
+    $this->cartService->updateQuantity($product, $quantity);
+    return response()->json(['message' => 'Cart updated successfully']);
+}
+```
+## 7. Clearing the Cart
+Use `clearCart` to remove all items.
+```php
+public function clearCart()
+{
+    $this->cartService->clearCart();
+    return response()->json(['message' => 'Cart cleared']);
+}
+```
+
+### Notes
+- The cart is stored in the **session** for guests.
+- The cart is saved in the **database** for registered users.
+
+## 🧪 PHPUnit Test Results
+
+```bash
+ php artisan test --filter=CartServiceTest
+
+   PASS  Tests\Feature\CartServiceTest
+  ✓ guest can add product to cart                                                                                    0.96s
+  ✓ authenticated user can add product to cart                                                                       0.06s
+  ✓ guest can retrieve cart items                                                                                    0.04s
+  ✓ authenticated user can retrieve cart items                                                                       0.04s
+  ✓ guest can remove product from cart                                                                               0.04s
+  ✓ authenticated user can remove product from cart                                                                  0.04s
+  ✓ guest can clear cart                                                                                             0.04s
+  ✓ authenticated user can clear cart                                                                                0.04s
+  ✓ cart merges on login                                                                                             0.03s
+  ✓ cannot add more than max quantity                                                                                0.03s
+  ✓ cannot add more than available stock                                                                             0.03s
+  ✓ cannot add negative quantity                                                                                     0.03s
+  ✓ adding same product twice increases quantity                                                                     0.04s
+  ✓ cannot add non existent product                                                                                  0.04s
+  ✓ cannot add product with zero quantity                                                                            0.03s
+  ✓ performance with thousands of items                                                                              0.87s
+  Tests:    16 passed (26 assertions)
+  Duration: 2.51s
+```
+
+## ⚡ Performance
+
+The system was tested with **1,000 products**, ensuring fast response times and optimal database queries. Redis is used for caching cart data, improving speed and efficiency.
+
+
+## 📌 Next Steps
+
+- Implement **coupon & discount system**.
+- Add **multi-cart support** for different user sessions.
+- Optimize for **API response caching** with Redis.
+
+---
+
+**Developed by Ziad Adel Gomaa** 🚀
